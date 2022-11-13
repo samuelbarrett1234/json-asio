@@ -3,11 +3,9 @@
 
 
 #include <optional>
+#include <string>
 #include <memory>
-#include <boost/json.hpp>
-#include <boost/asio.hpp>
-#include <boost/multiprecision/cpp_int.hpp>
-#include "json_asio_connection.hpp"
+#include "detail/json_asio_connection.hpp"
 
 
 namespace json_asio
@@ -18,7 +16,7 @@ namespace json_asio
 // clients, allowing you to automatically accept new
 // connections.
 // `Base` must have the following function:
-// `std::pair<Protocol, std::optional<boost::json::value>>> on_accepted(std::string uri)
+// `std::pair<Protocol, std::optional<boost::json::value>>> on_accepted(std::string uri)`
 template<typename Protocol, typename Base>
 class Server :
     protected Base
@@ -29,7 +27,7 @@ private:
     {
     public:
         Connection(Server<Protocol, Base>& server, boost::asio::ip::tcp::socket sock) :
-            detail::Connection<Protocol>(std::move(sock)),
+            detail::Connection<Protocol>(std::move(sock), Protocol()),
             server(server)
         {
             get_uri_size();
@@ -38,7 +36,6 @@ private:
     private:
         Server<Protocol, Base>& server;
         std::string uri;
-        std::optional<Protocol> protocol;
 
     private:
         void get_uri_size()
@@ -64,7 +61,8 @@ private:
             {
                 if (!ec)
                 {
-                    auto [p, initial_message] = server.on_accepted(std::move(uri_buffer));
+                    // TODO: avoid default constructing the protcol beforehand!!
+                    auto [p, initial_message] = server.on_accepted(std::move(uri));
                     protocol = std::move(p);
                     uri.clear();
 
@@ -85,8 +83,10 @@ public:
     using WorkPin = std::unique_ptr<boost::asio::io_service::work>;
 
 public:
-    Server(unsigned short port) :
-        m_acceptor(boost::asio::ip::tcp::endpoint(tcp::v4(), port))
+    template<class... ExtraArgs>
+    Server(unsigned short port, ExtraArgs&&... extra_args) :
+        Base(std::forward<ExtraArgs>(extra_args)...),
+        m_acceptor(m_ioc, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port))
     {
         accept();
     }

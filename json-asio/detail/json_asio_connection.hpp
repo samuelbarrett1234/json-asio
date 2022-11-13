@@ -6,7 +6,6 @@
 #include <optional>
 #include <boost/json.hpp>
 #include <boost/asio.hpp>
-#include <boost/multiprecision/cpp_int.hpp>
 
 
 namespace json_asio
@@ -19,8 +18,8 @@ template<typename Protocol>
 class Connection
 {
 public:
-    Connection(boost::asio::ip::tcp::socket sock) :
-        sock(std::move(sock))
+    Connection(boost::asio::ip::tcp::socket sock, Protocol protocol) :
+        sock(std::move(sock)), protocol(std::move(protocol))
     { }
 
 protected:
@@ -61,23 +60,27 @@ protected:
             {
                 if (!ec)
                 {
-                    // TODO: implement size limit
                     buffer.resize(size);
                     boost::asio::async_read(
                         sock, boost::asio::buffer(buffer),
-                        [this](const boost::system::error_code& ec, size_t)
+                        [this](const boost::system::error_code& ec1, size_t)
                         {
-                            if (!ec)
+                            if (!ec1)
                             {
+                                boost::json::error_code ec2;
                                 boost::json::value msg = boost::json::parse(
                                     boost::json::string_view(buffer.data(), buffer.size()),
-                                    ec
+                                    ec2
                                 );
                                 buffer.clear();
 
-                                if (!ec)
+                                if (!ec2)
                                 {
-                                    write((*protocol)(std::move(msg)));
+                                    auto maybe_reply = protocol(std::move(msg));
+                                    if (maybe_reply)
+                                    {
+                                        write(std::move(*maybe_reply));
+                                    }
                                 }
                             }
                         }
@@ -89,8 +92,9 @@ protected:
 
 protected:
     boost::asio::ip::tcp::socket sock;
+    Protocol protocol;
     std::vector<char> buffer;
-    boost::multiprecision::uint32_t size;
+    uint32_t size;
 };
 
 

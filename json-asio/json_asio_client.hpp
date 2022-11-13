@@ -3,10 +3,7 @@
 
 
 #include <optional>
-#include <boost/json.hpp>
-#include <boost/asio.hpp>
-#include <boost/multiprecision/cpp_int.hpp>
-#include "json_asio_connection.hpp"
+#include "detail/json_asio_connection.hpp"
 
 
 namespace json_asio
@@ -27,8 +24,8 @@ private:
             Client<Protocol>& client, boost::asio::ip::tcp::socket sock,
             std::string uri, Protocol protocol,
             std::optional<boost::json::value> initial_message) :
-            detail::Connection<Protocol>(std::move(sock)),
-            client(client), uri(std::move(uri)), protocol(std::move(protocol)),
+            detail::Connection<Protocol>(std::move(sock), std::move(protocol)),
+            client(client), uri(std::move(uri)),
             initial_message(std::move(initial_message))
         {
             send_uri_size();
@@ -37,7 +34,6 @@ private:
     private:
         Client<Protocol>& client;
         const std::string uri;
-        Protocol protocol;
         std::optional<boost::json::value> initial_message;
 
     private:
@@ -80,8 +76,6 @@ public:
     using WorkPin = std::unique_ptr<boost::asio::io_service::work>;
 
 public:
-    Client();
-
     void post(
         std::string ip_addr,
         unsigned short port,
@@ -95,9 +89,9 @@ public:
         std::optional<boost::json::value> initial_message
     )
     {
-        boost::asio::tcp::socket sock(m_ioc);
-        sock.connect(boost::asio::tcp::endpoint(
-            boost::asio::tcp::ip::address(boost::asio::tcp::ip::address_v4()),
+        boost::asio::ip::tcp::socket sock(m_ioc);
+        sock.connect(boost::asio::ip::tcp::endpoint(
+            boost::asio::ip::address(boost::asio::ip::address_v4()),
             port
         ));
         m_connections.emplace_back(std::make_unique<Connection>(
