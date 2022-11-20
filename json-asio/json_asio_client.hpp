@@ -119,7 +119,7 @@ public:
     // returning from `run` when there is no more work left to do.
     WorkPin pin_work()
     {
-        return std::make_unique<boost::asio::io_service::work>(m_ioservice);
+        return std::make_unique<boost::asio::io_service::work>(m_ioc);
     }
 
 private:

@@ -53,7 +53,6 @@ private:
 
         void get_uri()
         {
-            // TODO: implement size limit
             uri.resize(size);
             boost::asio::async_read(
                 sock, boost::asio::buffer(uri.data(), uri.size()),
@@ -91,7 +90,7 @@ public:
         accept();
     }
 
-    // commit a thread to running client business
+    // commit a thread to running server business
     void run()
     {
         m_ioc.run();
@@ -107,7 +106,7 @@ public:
     // returning from `run` when there is no more work left to do.
     WorkPin pin_work()
     {
-        return std::make_unique<boost::asio::io_service::work>(m_ioservice);
+        return std::make_unique<boost::asio::io_service::work>(m_ioc);
     }
 
 private:
